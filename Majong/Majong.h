@@ -106,7 +106,6 @@ public:
     vector<vector<string>> recognize(Mat image, string platform);
     vector<vector<string>> recognize(string image_filename, string platform);
     int test_sign(string source_folder, string dest_folder);
-    int test_phoneRect(string image_path);
 private:
     void color(Mat &img, Mat &dst, color_callback_data &ccb);
     double getOverlap(const Rect &box1, const Rect &box2);
@@ -139,7 +138,7 @@ private:
 };
 
 
-#define FLAG_CLOCK false
+#define FLAG_CLOCK true
 
 #define SHOW_CALLBACK false
 #define SHOW_RECTS false
