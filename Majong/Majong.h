@@ -54,10 +54,12 @@ public:
     color_callback_data color_callback_data1_othercolor;
     bool hasErode;
     int areaThreshold;
+    double otherAreaThresholdRatio;
     double minSideRatio;
     // area
 
     vector<Vec<double, 5>> posRect;
+    vector<Vec<double, 5>> doraRect;
     double heightRatio;
     double heightRatioDelta;
     double lineMaxStd;
@@ -73,17 +75,18 @@ public:
     bool isReversal;
     vector<string> templetNames;
 
-    Platform(double resizeRatio_, color_callback_data color_callback_data1_, color_callback_data color_callback_data1_othercolor_,
-        bool hasErode_, int areaThreshold_, double minSideRatio_,
-        vector<Vec<double, 5>> posRect_, double heightRatio_, double heightRatioDelta_, double lineMaxStd_,
-        double lineMinRatio_, double lineMinRatioDelta_, double lineMinRatioDeltaType0_, double lineMaxRatio_,
-        double lineMaxRatioDeltaType0_, double otherLineMinRatio_, double otherLineMaxRatio_, bool isReversal_, vector<string> templetNames_)
-        : resizeRatio(resizeRatio_), color_callback_data1(color_callback_data1_),
-        color_callback_data1_othercolor(color_callback_data1_othercolor_), hasErode(hasErode_), areaThreshold(areaThreshold_),
-        minSideRatio(minSideRatio_), posRect(posRect_), heightRatio(heightRatio_), heightRatioDelta(heightRatioDelta_),
-        lineMaxStd(lineMaxStd_), lineMinRatio(lineMinRatio_), lineMinRatioDelta(lineMinRatioDelta_),
-        lineMinRatioDeltaType0(lineMinRatioDeltaType0_), lineMaxRatio(lineMaxRatio_), lineMaxRatioDeltaType0(lineMaxRatioDeltaType0_),
-        otherLineMinRatio(otherLineMinRatio_), otherLineMaxRatio(otherLineMaxRatio_), isReversal(isReversal_), templetNames(templetNames_) {}
+    Platform(double _resizeRatio, color_callback_data _color_callback_data1, color_callback_data _color_callback_data1_othercolor,
+        bool _hasErode, int _areaThreshold, double _otherAreaThresholdRatio, double _minSideRatio,
+        vector<Vec<double, 5>> _posRect, vector<Vec<double, 5>> _doraRect, double _heightRatio, double _heightRatioDelta, double _lineMaxStd,
+        double _lineMinRatio, double _lineMinRatioDelta, double _lineMinRatioDeltaType0, double _lineMaxRatio,
+        double _lineMaxRatioDeltaType0, double _otherLineMinRatio, double _otherLineMaxRatio, bool _isReversal, vector<string> _templetNames)
+        : resizeRatio(_resizeRatio), color_callback_data1(_color_callback_data1),
+        color_callback_data1_othercolor(_color_callback_data1_othercolor), hasErode(_hasErode), areaThreshold(_areaThreshold),
+        otherAreaThresholdRatio(_otherAreaThresholdRatio), minSideRatio(_minSideRatio), posRect(_posRect), doraRect(_doraRect),
+        heightRatio(_heightRatio), heightRatioDelta(_heightRatioDelta), lineMaxStd(_lineMaxStd), lineMinRatio(_lineMinRatio),
+        lineMinRatioDelta(_lineMinRatioDelta), lineMinRatioDeltaType0(_lineMinRatioDeltaType0), lineMaxRatio(_lineMaxRatio),
+        lineMaxRatioDeltaType0(_lineMaxRatioDeltaType0), otherLineMinRatio(_otherLineMinRatio), otherLineMaxRatio(_otherLineMaxRatio),
+        isReversal(_isReversal), templetNames(_templetNames) {}
 };
 
 
@@ -94,8 +97,8 @@ public:
     Mat image;
     string platform;
 
-    Instance(string filename_, string platform_) : filename(filename_), platform(platform_) { image = imread(filename); }
-    Instance(Mat image_, string platform_) : image(image_), platform(platform_) {}
+    Instance(string _filename, string _platform) : filename(_filename), platform(_platform) { image = imread(filename); }
+    Instance(Mat _image, string _platform) : image(_image), platform(_platform) {}
 };
 
 
@@ -124,15 +127,16 @@ private:
     double getOverlap(Vec<double, 5> &para1, Vec<double, 5> &para2, Mat &img);
     void getOtherRects(vector<Vec<double, 5>> &paralls, vector<Vec<double, 5>> posRect, Mat img,
         color_callback_data &color_callback_data1_othercolor, bool hasErode, int areaThreshold, double minSideRatio);
-    void distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int minLimit, int maxLimit);
+    void distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsType, int minLimit, int maxLimit);
     void getSmall(vector<Vec<double, 5>> &parall_small, vector<int> &types, vector<Vec<double, 5>> &paralls, Mat &img, vector<Vec<double, 5>> &posRect,
         double heightRatio, double heightRatioDelta, double maxstd, double min_ratio, double min_ratio_delta, double min_ratio_delta_type0,
         double max_ratio, double max_ratio_delta_type0, double otherLineMinRatio, double otherLineMaxRatio);
-    void signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result, vector<int> &types);
+    void addDora(vector<Vec<double, 5>> &parall_small, vector<int> &types, MatSize size, vector<Vec<double, 5>> &doraRect, int doraType);
+    void signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result, vector<int> &types, int handCardsType);
     void signArea(Mat &img, vector<Vec<double, 5>> &posRect);
     Platform getPlatform(string platName);
     vector<string> DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, vector<int> &types, bool isReversal, string model_file, vector<string> &templetNames);
-    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<int> types);
+    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<int> types, int infoCount);
     void createDNNDataset(Mat &img, vector<Vec<double, 5>> &paralls, string dest_filename, vector<int> &types, bool isReversal);
     vector<vector<string>> recognize(Instance instance, string dest_filename, FILE *fMatchWrite, FILE *fInfoWrite, string dataset_filename);
 };
@@ -144,6 +148,7 @@ private:
 #define SHOW_RECTS false
 #define SHOW_FINALLY false
 
+//#define SOURCE_FILENAME "1_0.png"
 //#define SMALL_INDEX 0
 //#define SMALL_TYPE 0
 
@@ -179,14 +184,16 @@ private:
 
 #define PARMS_PLAT_0 resizeRatio = 0.6; \
                     color_callback_data1 = color_callback_data(0, 360, 0, 72, 183, 250, 0, -1, "color"); \
-                    color_callback_data1_othercolor = color_callback_data(0, 100, 0, 25, 115, 169, 0, -1, "no"); \
+                    color_callback_data1_othercolor = color_callback_data(54, 96, 61, 155, 0, 255, 0, -1, "dora"); \
                     hasErode = false; \
-                    areaThreshold = 1000; \
+                    areaThreshold = 300; \
+                    otherAreaThresholdRatio = 1; \
                     minSideRatio = 0.015; \
                     posRect = { Vec<double, 5>(0.03, 0.83, 0.95, 0.16, 0.00), Vec<double, 5>(0.32, 0.60, 0.37, 0.21, 0.00), \
                                 Vec<double, 5>(0.12, 0.14, 0.04, 0.53, 0.00), Vec<double, 5>(0.17, 0.25, 0.11, 0.50, 0.00), \
                                 Vec<double, 5>(0.28, 0.03, 0.48, 0.11, 0.00), Vec<double, 5>(0.32, 0.15, 0.37, 0.21, 0.00), \
                                 Vec<double, 5>(0.86, 0.24, 0.04, 0.53, 0.00), Vec<double, 5>(0.72, 0.25, 0.11, 0.50, 0.00) }; \
+                    doraRect = { Vec<double, 5>(0.935, 0.04, 0.04, 0.095, 0.00) }; \
                     heightRatio = 0.07; \
                     heightRatioDelta = 0.0; \
                     lineMaxStd = 30.0; \
@@ -195,7 +202,7 @@ private:
                     lineMinRatioDeltaType0 = 0.0; \
                     lineMaxRatio = 0.8; \
                     lineMaxRatioDeltaType0 = 0.0; \
-                    otherLineMinRatio = 0.06; \
+                    otherLineMinRatio = 0.05; \
                     otherLineMaxRatio = 0.08; \
                     isReversal = true;
 

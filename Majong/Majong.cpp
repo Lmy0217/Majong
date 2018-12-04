@@ -239,6 +239,7 @@ vector<Vec<double, 5>> Recognition::morlines(Mat &img, Vec<double, 5> &parall, i
     int type = (fullType == 0 || fullType == 1 || fullType == 4 || fullType == 5) ? 0 : 1;
     double rows = round((type == 0 ? sqrt(parall(3) * parall(3) + parall(4) * parall(4)) : parall(2)) / ((fullType == 1
         || fullType == 4 || fullType == 5) ? (double)heightDelta : (double)height));
+    rows = rows > 0 ? rows : 1;
     for (int rr = 0; rr < rows; rr++) {
         Vec<double, 5> pa = Vec<double, 5>(type == 0 ? (parall(4) / rows * rr - (parall(4) < 0 ? parall(4) : 0))
             : (parall(2) / rows * rr - (parall(4) < 0 ? parall(4) : 0)),
@@ -266,9 +267,9 @@ vector<Vec<double, 5>> Recognition::morlines(Mat &img, Vec<double, 5> &parall, i
                 prior = index.at(i);
             }
             else if (r > (max_ratio - ((fullType == 1 || fullType == 4 || fullType == 5) ? max_ratio_delta_type0 : 0))) {
-                index.at(i) = int((type == 0 ? sqrt(pa(3) * pa(3) + pa(4) * pa(4)) : pa(2)) / round((1 / (min_ratio -
+                index.at(i) = int(round((type == 0 ? sqrt(pa(3) * pa(3) + pa(4) * pa(4)) : pa(2)) / ((1 / (min_ratio -
                     (type == 0 ? ((fullType == 1 || fullType == 4 || fullType == 5) ? min_ratio_delta_type0 : 0) : min_ratio_delta))
-                    + 1 / (max_ratio - ((fullType == 1 || fullType == 4 || fullType == 5) ? max_ratio_delta_type0 : 0))) / 2) + prior);
+                    + 1 / (max_ratio - ((fullType == 1 || fullType == 4 || fullType == 5) ? max_ratio_delta_type0 : 0))) / 2) + prior));
                 if (i == reIndex && index.at(i) == reValue) {
                     continue;
                 }
@@ -385,25 +386,23 @@ void Recognition::getOtherRects(vector<Vec<double, 5>> &paralls, vector<Vec<doub
         vector<Vec<double, 5>> paralls_othercolor = getRects(img, color_callback_data1_othercolor,
             hasErode, areaThreshold, minSideRatio);
         for (int i = 0; i < paralls_othercolor.size(); i++) {
-            if (range(parall2Rect(paralls_othercolor.at(i), img), img, posRect) == 0) {
-                bool overlapFlag = true;
-                for (int j = (int)paralls.size() - 1; j >= 0; j--) {
-                    double overlap = getOverlap(paralls.at(j), paralls_othercolor.at(i), img);
-                    if (overlap != 0) {
-                        overlapFlag = false;
-                        break;
-                    }
+            bool overlapFlag = true;
+            for (int j = (int)paralls.size() - 1; j >= 0; j--) {
+                double overlap = getOverlap(paralls.at(j), paralls_othercolor.at(i), img);
+                if (overlap != 0) {
+                    overlapFlag = false;
+                    break;
                 }
-                if (overlapFlag) {
-                    paralls.push_back(paralls_othercolor.at(i));
-                }
+            }
+            if (overlapFlag) {
+                paralls.push_back(paralls_othercolor.at(i));
             }
         }
     }
 }
 
 
-void Recognition::distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int minLimit, int maxLimit) {
+void Recognition::distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsType, int minLimit, int maxLimit) {
 
     for (int i = 0; i < parall_small.size(); i++) {
         if (types.at(i) == 0) {
@@ -411,7 +410,7 @@ void Recognition::distHandCards(vector<Vec<double, 5>> &parall_small, vector<int
             double height = sqrt(parall_small.at(i)(3) * parall_small.at(i)(3)
                 + parall_small.at(i)(4) * parall_small.at(i)(4));
             if (min(width, height) > minLimit && max(width, height) < maxLimit) {
-                types.at(i) = 8;
+                types.at(i) = handCardsType;
             }
         }
     }
@@ -456,12 +455,22 @@ void Recognition::getSmall(vector<Vec<double, 5>> &parall_small, vector<int> &ty
             }
         }
     }
-    distHandCards(parall_small, types, int(otherLineMinRatio  * img.cols), int(otherLineMaxRatio * img.cols));
+    distHandCards(parall_small, types, int(posRect.size()), int(otherLineMinRatio  * img.cols), int(otherLineMaxRatio * img.cols));
+}
+
+
+void Recognition::addDora(vector<Vec<double, 5>> &parall_small, vector<int> &types, MatSize size, vector<Vec<double, 5>> &doraRect, int doraType) {
+
+    for (int i = 0; i < doraRect.size(); i++) {
+        parall_small.push_back(Vec<double, 5>(doraRect.at(i)(0) * size[1], doraRect.at(i)(1) * size[0],
+            doraRect.at(i)(2) * size[1], doraRect.at(i)(3) * size[0], doraRect.at(i)(4) * size[1]));
+        types.push_back(doraType);
+    }
 }
 
 
 void Recognition::signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result,
-    vector<int> &types) {
+    vector<int> &types, int handCardsType) {
 
     for (int i = 0; i < parall_small.size(); i++) {
         line(img, Point(int(parall_small.at(i)(0)), int(parall_small.at(i)(1))), Point(int((parall_small.at(i)(0)
@@ -477,9 +486,9 @@ void Recognition::signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vect
         char str[4];
         _itoa_s(i, str, 10);
         putText(img, match_result.at(i), Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3)
-            / 2 - 2)), FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != 8) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
+            / 2 - 2)), FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != handCardsType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
         putText(img, str, Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3) / 2 + 12)),
-            FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != 8) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
+            FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != handCardsType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
     }
 }
 
@@ -510,9 +519,11 @@ Platform Recognition::getPlatform(string platName) {
     color_callback_data color_callback_data1_othercolor;
     bool hasErode;
     int areaThreshold;
+    double otherAreaThresholdRatio;
     double minSideRatio;
 
     vector<Vec<double, 5>> posRect;
+    vector<Vec<double, 5>> doraRect;
     double heightRatio;
     double heightRatioDelta;
     double lineMaxStd;
@@ -529,10 +540,10 @@ Platform Recognition::getPlatform(string platName) {
 
     PARMS_PLAT(platName)
 
-        return Platform(resizeRatio, color_callback_data1, color_callback_data1_othercolor, hasErode,
-            areaThreshold, minSideRatio, posRect, heightRatio, heightRatioDelta, lineMaxStd, lineMinRatio,
-            lineMinRatioDelta, lineMinRatioDeltaType0, lineMaxRatio, lineMaxRatioDeltaType0, otherLineMinRatio,
-            otherLineMaxRatio, isReversal, templetNames);
+    return Platform(resizeRatio, color_callback_data1, color_callback_data1_othercolor, hasErode, areaThreshold,
+        otherAreaThresholdRatio, minSideRatio, posRect, doraRect, heightRatio, heightRatioDelta, lineMaxStd,
+        lineMinRatio, lineMinRatioDelta, lineMinRatioDeltaType0, lineMaxRatio, lineMaxRatioDeltaType0, otherLineMinRatio,
+        otherLineMaxRatio, isReversal, templetNames);
 }
 
 
@@ -569,9 +580,9 @@ vector<string> Recognition::DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, v
 }
 
 
-vector<vector<string>> Recognition::getFinallyInfo(vector<string> match_result, vector<int> types) {
+vector<vector<string>> Recognition::getFinallyInfo(vector<string> match_result, vector<int> types, int infoCount) {
 
-    vector<vector<string>> finally_info(9);
+    vector<vector<string>> finally_info(infoCount);
 
     for (int i = 0; i < match_result.size(); i++) {
         finally_info.at(types.at(i)).push_back(match_result.at(i));
@@ -622,7 +633,7 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     vector<Vec<double, 5>> paralls = getRects(img.clone(), platform.color_callback_data1,
         platform.hasErode, platform.areaThreshold, platform.minSideRatio);
     getOtherRects(paralls, platform.posRect, img.clone(), platform.color_callback_data1_othercolor,
-        platform.hasErode, platform.areaThreshold * 3, platform.minSideRatio);
+        platform.hasErode, int(platform.areaThreshold * platform.otherAreaThresholdRatio), platform.minSideRatio);
     if (FLAG_CLOCK) {
         endTime = clock();
         printf_s("getRects: ");
@@ -637,6 +648,7 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     getSmall(parall_small, types, paralls, img, platform.posRect, platform.heightRatio, platform.heightRatioDelta,
         platform.lineMaxStd, platform.lineMinRatio, platform.lineMinRatioDelta, platform.lineMinRatioDeltaType0,
         platform.lineMaxRatio, platform.lineMaxRatioDeltaType0, platform.otherLineMinRatio, platform.otherLineMaxRatio);
+    addDora(parall_small, types, img.size, platform.doraRect, int(platform.posRect.size() + 1));
     if (dataset_filename != "") {
         createDNNDataset(img, parall_small, dataset_filename, types, platform.isReversal);
     }
@@ -657,7 +669,7 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
         }
         fprintf(fMatchWrite, "},\n");
     }
-    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, types);
+    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, types, int(platform.posRect.size() + 2));
     if (fInfoWrite != NULL) {
         fprintf(fInfoWrite, "\"%s\":{\n", instance.filename.c_str());
         for (int i = 0; i < finallyInfo.size(); i++) {
@@ -681,9 +693,10 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
         }
         if (SIGN_AREA) {
             signArea(img, platform.posRect);
+            signArea(img, platform.doraRect);
         }
         if (SIGN_SMALL) {
-            signSmall(img, parall_small, match_result, types);
+            signSmall(img, parall_small, match_result, types, int(platform.posRect.size()));
         }
         imwrite(dest_filename, img);
         if (FLAG_CLOCK) {
@@ -732,7 +745,7 @@ int Recognition::test_sign(string source_folder, string dest_folder) {
     }
 
     struct _finddata_t fileinfo;
-    string source_filename;
+    string source_filename, dest_filename;
     string platform;
     intptr_t handle;
     handle = _findfirst((source_folder + "/*.png").c_str(), &fileinfo);
@@ -742,12 +755,20 @@ int Recognition::test_sign(string source_folder, string dest_folder) {
         return -1;
     }
     else {
+#ifndef SOURCE_FILENAME
         do {
             source_filename = source_folder + "/" + fileinfo.name;
+            dest_filename = dest_folder + "/" + fileinfo.name;
+#else
+            source_filename = source_folder + "/" + SOURCE_FILENAME;
+            dest_filename = dest_folder + "/" + SOURCE_FILENAME;
+#endif
             platform = source_filename.substr(source_filename.find(".", 0) - 1, 1);
-            recognize(Instance(source_filename, platform), dest_folder + "/" + fileinfo.name, fMatchWrite, fInfoWrite);
+            recognize(Instance(source_filename, platform), dest_filename, fMatchWrite, fInfoWrite);
             printf_s("%d\n", ++count);
+#ifndef SOURCE_FILENAME
         } while (_findnext(handle, &fileinfo) == 0);
+#endif
     }
 
     if (fInfoWrite != NULL) {
@@ -761,13 +782,16 @@ int Recognition::test_sign(string source_folder, string dest_folder) {
 }
 
 
-int main(int argc, char* argv_old[]) {
-
-    argc = 3;
-    const char* argv[]{ "Majong.exe", "test/png", "test/sign" };
+int main(int argc, char* argv[]) {
 
     if (argc < 3) {
-        printf_s("Need more arguments!\n");
+        printf_s("Need more arguments! Set default!\n");
+        const char* argv_const[]{ "Majong.exe", "test/png", "test/sign" };
+        for (int i = 0; i < 3; i++) {
+            argv[i] = new char[256];
+            strcpy_s(argv[i], 256, argv_const[i]);
+        }
+        argc = 3;
     }
 
     Recognition recognition;
