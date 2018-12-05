@@ -106,6 +106,7 @@ class Recognition
 {
 public:
     map<string, int> getVaildPlatforms();
+    vector<vector<string>> recognize(Mat image, string platform, string dest_filename, string match_filename, string info_filename);
     vector<vector<string>> recognize(Mat image, string platform);
     vector<vector<string>> recognize(string image_filename, string platform);
     int test_sign(string source_folder, string dest_folder);
@@ -156,6 +157,8 @@ private:
 #define MODEL_SCALE 1.0f
 #define MODEL_INPWIDTH 64
 #define MODEL_INPHEIGHT 64
+
+#define MIN_CARDLIMIT 10
 
 #define SIGN_AREA true
 #define SIGN_SMALL true
@@ -413,4 +416,5 @@ private:
                                 else if (platName == "6") { PARMS_PLAT_6 } \
                                 else if (platName == "7") { PARMS_PLAT_7 } \
                                 else if (platName == "8") { PARMS_PLAT_8 } \
-                                else if (platName == "9") { PARMS_PLAT_9 }
+                                else if (platName == "9") { PARMS_PLAT_9 } \
+                                else { PARMS_PLAT_0 }

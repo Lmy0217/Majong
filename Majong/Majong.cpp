@@ -619,6 +619,10 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     }
     Platform platform = getPlatform(instance.platform);
     Mat img = instance.image;
+    if (img.data == NULL) {
+        printf_s("Error: Invaild image!\n");
+        return vector<vector<string>>{ vector<string>{ "Error: Invaild image!" } };
+    }
     resize(img, img, Size(int(img.cols * platform.resizeRatio), int(img.rows * platform.resizeRatio)));
     Mat imgclone = img.clone();
     if (FLAG_CLOCK) {
@@ -648,6 +652,10 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     getSmall(parall_small, types, paralls, img, platform.posRect, platform.heightRatio, platform.heightRatioDelta,
         platform.lineMaxStd, platform.lineMinRatio, platform.lineMinRatioDelta, platform.lineMinRatioDeltaType0,
         platform.lineMaxRatio, platform.lineMaxRatioDeltaType0, platform.otherLineMinRatio, platform.otherLineMaxRatio);
+    if (parall_small.size() < MIN_CARDLIMIT) {
+        printf_s("Error: Less than the minimum detection limit!\n");
+        return vector<vector<string>>{ vector<string>{ "Error: Less than the minimum detection limit!" } };
+    }
     addDora(parall_small, types, img.size, platform.doraRect, int(platform.posRect.size() + 1));
     if (dataset_filename != "") {
         createDNNDataset(img, parall_small, dataset_filename, types, platform.isReversal);
@@ -719,9 +727,45 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
 }
 
 
+vector<vector<string>> Recognition::recognize(Mat image, string platform, string dest_filename,
+    string match_filename, string info_filename) {
+
+    FILE *fMatchWrite = NULL;
+    FILE *fInfoWrite = NULL;
+    if (match_filename != "") {
+        fopen_s(&fMatchWrite, match_filename.c_str(), "w");
+    }
+    if (info_filename != "") {
+        fopen_s(&fInfoWrite, info_filename.c_str(), "w");
+    }
+
+    int platformID = 0;
+    map<string, int> vaildPlatforms = getVaildPlatforms();
+    map<string, int>::iterator iter = vaildPlatforms.find(platform);
+    if (iter != vaildPlatforms.end()) {
+        platformID = iter->second;
+    }
+    else {
+        printf_s("Invaild platform! Set default platform!\n");
+    }
+
+    vector<vector<string>> finallyInfo = recognize(Instance(image, to_string(platformID)),
+        dest_filename, fMatchWrite, fInfoWrite);
+
+    if (fInfoWrite != NULL) {
+        fclose(fInfoWrite);
+    }
+    if (fMatchWrite != NULL) {
+        fclose(fMatchWrite);
+    }
+
+    return finallyInfo;
+}
+
+
 vector<vector<string>> Recognition::recognize(Mat image, string platform) {
 
-    return recognize(Instance(image, to_string(getVaildPlatforms()[platform])));
+    return recognize(image, platform, "", "", "");
 }
 
 
@@ -733,7 +777,11 @@ vector<vector<string>> Recognition::recognize(string image_filename, string plat
 
 int Recognition::test_sign(string source_folder, string dest_folder) {
 
-    _mkdir(dest_folder.c_str());
+    if (_access_s(source_folder.c_str(), 0) != 0 || (_access_s(dest_folder.c_str(), 0) != 0
+        && _mkdir(dest_folder.c_str()) == -1)) {
+        printf_s("Error folder!\n");
+        return -1;
+    }
 
     FILE *fMatchWrite = NULL;
     FILE *fInfoWrite = NULL;
@@ -797,5 +845,6 @@ int main(int argc, char* argv[]) {
     Recognition recognition;
     recognition.test_sign(argv[1], argv[2]);
 
+    system("pause");
     return 0;
 }
