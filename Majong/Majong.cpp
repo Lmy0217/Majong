@@ -845,6 +845,5 @@ int main(int argc, char* argv[]) {
     Recognition recognition;
     recognition.test_sign(argv[1], argv[2]);
 
-    system("pause");
     return 0;
 }
