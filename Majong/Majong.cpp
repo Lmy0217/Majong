@@ -484,7 +484,7 @@ void Recognition::signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vect
         line(img, Point(int((parall_small.at(i)(0) + parall_small.at(i)(4))), int((parall_small.at(i)(1)
             + parall_small.at(i)(3)))), Point(int(parall_small.at(i)(0)), int(parall_small.at(i)(1))), Scalar(0, 0, 255), 2);
         char str[4];
-        _itoa_s(i, str, 10);
+        sprintf_s(str, "%d", i);
         putText(img, match_result.at(i), Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3)
             / 2 - 2)), FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != handCardsType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
         putText(img, str, Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3) / 2 + 12)),
@@ -772,7 +772,9 @@ vector<vector<string>> Recognition::recognize(Mat image, string platform, string
         printf_s("Invaild platform! Set default platform!\n");
     }
 
-    vector<vector<string>> finallyInfo = recognize(Instance(image, to_string(platformID)),
+    char platformID_str[4];
+    sprintf_s(platformID_str, "%d", platformID);
+    vector<vector<string>> finallyInfo = recognize(Instance(image, platformID_str),
         dest_filename, fMatchWrite, fInfoWrite);
 
     if (fInfoWrite != NULL) {
