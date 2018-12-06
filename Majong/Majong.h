@@ -137,7 +137,7 @@ private:
     void signArea(Mat &img, vector<Vec<double, 5>> &posRect);
     Platform getPlatform(string platName);
     vector<string> DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, vector<int> &types, bool isReversal, string model_file, vector<string> &templetNames);
-    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<int> types, int infoCount);
+    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<Vec<double, 5>> parall_small, vector<int> types, Size size, int infoCount);
     void createDNNDataset(Mat &img, vector<Vec<double, 5>> &paralls, string dest_filename, vector<int> &types, bool isReversal);
     vector<vector<string>> recognize(Instance instance, string dest_filename, FILE *fMatchWrite, FILE *fInfoWrite, string dataset_filename);
 };
@@ -163,8 +163,8 @@ private:
 #define SIGN_AREA true
 #define SIGN_SMALL true
 
-#define FILE_MATCH "test/match_result.txt"
-#define FILE_INFO "test/finallyInfo.txt"
+#define FILE_MATCH "test/match_result.json"
+#define FILE_INFO "test/finallyInfo.json"
 
 
 #define LABEL_NAMES { "bai", "bei", "dong", "fa", "nan", "no", "tiao1", "tiao2", \

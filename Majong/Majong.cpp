@@ -580,13 +580,21 @@ vector<string> Recognition::DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, v
 }
 
 
-vector<vector<string>> Recognition::getFinallyInfo(vector<string> match_result, vector<int> types, int infoCount) {
+vector<vector<string>> Recognition::getFinallyInfo(vector<string> match_result, vector<Vec<double, 5>> parall_small,
+    vector<int> types, Size size, int infoCount) {
 
     vector<vector<string>> finally_info(infoCount);
 
     for (int i = 0; i < match_result.size(); i++) {
-        finally_info.at(types.at(i)).push_back(match_result.at(i));
+        char str[256];
+        sprintf_s(str, "_%lg_%lg_%lg_%lg_%lg", parall_small.at(i)(0), parall_small.at(i)(1),
+            parall_small.at(i)(2), parall_small.at(i)(3), parall_small.at(i)(4));
+        finally_info.at(types.at(i)).push_back(match_result.at(i) + str);
     }
+    char width_str[12], height_str[12];
+    sprintf_s(width_str, "%d", size.width);
+    sprintf_s(height_str, "%d", size.height);
+    finally_info.push_back(vector<string>{ width_str, height_str });
 
     return finally_info;
 }
@@ -671,23 +679,38 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     }
     vector<string> match_result = DNNMatch(img.clone(), parall_small, types, platform.isReversal, MODEL_FILE, platform.templetNames);
     if (fMatchWrite != NULL) {
-        fprintf(fMatchWrite, "\"%s\":{\n", instance.filename.c_str());
+        fprintf(fMatchWrite, "{\n  \"%s\":{\n", instance.filename.c_str());
         for (int i = 0; i < match_result.size(); i++) {
-            fprintf(fMatchWrite, "  \"%d\":\"%s\",\n", i, match_result.at(i).c_str());
-        }
-        fprintf(fMatchWrite, "},\n");
-    }
-    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, types, int(platform.posRect.size() + 2));
-    if (fInfoWrite != NULL) {
-        fprintf(fInfoWrite, "\"%s\":{\n", instance.filename.c_str());
-        for (int i = 0; i < finallyInfo.size(); i++) {
-            fprintf(fInfoWrite, "  \"%d\":{\n", i);
-            for (int j = 0; j < finallyInfo.at(i).size(); j++) {
-                fprintf(fInfoWrite, "    \"%s\",\n", finallyInfo.at(i).at(j).c_str());
+            if (i < match_result.size() - 1) {
+                fprintf(fMatchWrite, "    \"%d\":\"%s\",\n", i, match_result.at(i).c_str());
             }
-            fprintf(fInfoWrite, "  },\n");
+            else {
+                fprintf(fMatchWrite, "    \"%d\":\"%s\"\n", i, match_result.at(i).c_str());
+            }
         }
-        fprintf(fInfoWrite, "},\n");
+        fprintf(fMatchWrite, "  }\n}\n");
+    }
+    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, parall_small, types, img.size(), int(platform.posRect.size() + 2));
+    if (fInfoWrite != NULL) {
+        fprintf(fInfoWrite, "{\n  \"%s\":{\n", instance.filename.c_str());
+        for (int i = 0; i < finallyInfo.size(); i++) {
+            fprintf(fInfoWrite, "    \"%d\":[\n", i);
+            for (int j = 0; j < finallyInfo.at(i).size(); j++) {
+                if (j < finallyInfo.at(i).size() - 1) {
+                    fprintf(fInfoWrite, "      \"%s\",\n", finallyInfo.at(i).at(j).c_str());
+                }
+                else {
+                    fprintf(fInfoWrite, "      \"%s\"\n", finallyInfo.at(i).at(j).c_str());
+                }
+            }
+            if (i < finallyInfo.size() - 1) {
+                fprintf(fInfoWrite, "    ],\n");
+            }
+            else {
+                fprintf(fInfoWrite, "    ]\n");
+            }
+        }
+        fprintf(fInfoWrite, "  }\n}\n");
     }
     if (FLAG_CLOCK) {
         endTime = clock();
