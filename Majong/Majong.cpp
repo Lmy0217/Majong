@@ -402,17 +402,53 @@ void Recognition::getOtherRects(vector<Vec<double, 5>> &paralls, vector<Vec<doub
 }
 
 
-void Recognition::distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsType, int minLimit, int maxLimit) {
+void Recognition::distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsAddType, int minLimit, int maxLimit) {
+
+    vector<int> sort_hand_id;
+    vector<int> hand_split_id;
 
     for (int i = 0; i < parall_small.size(); i++) {
         if (types.at(i) == 0) {
-            double width = parall_small.at(i)(2);
-            double height = sqrt(parall_small.at(i)(3) * parall_small.at(i)(3)
-                + parall_small.at(i)(4) * parall_small.at(i)(4));
-            if (min(width, height) > minLimit && max(width, height) < maxLimit) {
-                types.at(i) = handCardsType;
+            double center = parall_small.at(i)(0) + parall_small.at(i)(2) / 2;
+            if (sort_hand_id.empty()) {
+                sort_hand_id.push_back(i);
+            }
+            else {
+                vector<int>::iterator it;
+                bool it_flag = false;
+                for (int j = 0; j < sort_hand_id.size(); j++) {
+                    double comp_center = parall_small.at(sort_hand_id.at(j))(0) + parall_small.at(sort_hand_id.at(j))(2) / 2;
+                    if (center < comp_center) {
+                        it = sort_hand_id.begin() + j;
+                        it_flag = true;
+                        break;
+                    }
+                    else if (j == sort_hand_id.size() - 1 && center > comp_center) {
+                        it = sort_hand_id.end();
+                        it_flag = true;
+                        break;
+                    }
+                }
+                if (it_flag) {
+                    sort_hand_id.insert(it, i);
+                }
             }
         }
+    }
+
+    for (int i = 1; i < sort_hand_id.size(); i++) {
+        double dist = parall_small.at(sort_hand_id.at(i))(0) - parall_small.at(sort_hand_id.at(i - 1))(0)
+            - parall_small.at(sort_hand_id.at(i - 1))(2);
+        if (dist > minLimit/* && dist < maxLimit*/
+            && (hand_split_id.empty() && i <= 4 || hand_split_id.size() > 0 && i - hand_split_id.back() <= 4
+                && parall_small.at(hand_split_id.back())(3) < maxLimit)
+            ) {
+            hand_split_id.push_back(i);
+        }
+    }
+
+    for (int i = 0; hand_split_id.size() > 0 && i < hand_split_id.back(); i++) {
+        types.at(sort_hand_id.at(i)) = handCardsAddType;
     }
 }
 
@@ -470,7 +506,7 @@ void Recognition::addDora(vector<Vec<double, 5>> &parall_small, vector<int> &typ
 
 
 void Recognition::signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result,
-    vector<int> &types, int handCardsType) {
+    vector<int> &types, int handCardsAddType, string nostring) {
 
     for (int i = 0; i < parall_small.size(); i++) {
         line(img, Point(int(parall_small.at(i)(0)), int(parall_small.at(i)(1))), Point(int((parall_small.at(i)(0)
@@ -486,9 +522,11 @@ void Recognition::signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vect
         char str[4];
         sprintf_s(str, "%d", i);
         putText(img, match_result.at(i), Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3)
-            / 2 - 2)), FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != handCardsType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
+            / 2 - 2)), FONT_HERSHEY_DUPLEX, 0.5, match_result.at(i).compare(nostring) == 0 ? Scalar(100, 149, 237)
+            : ((types.at(i) != handCardsAddType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0)), 1);
         putText(img, str, Point((int)parall_small.at(i)(0), (int)(parall_small.at(i)(1) + parall_small.at(i)(3) / 2 + 12)),
-            FONT_HERSHEY_DUPLEX, 0.5, (types.at(i) != handCardsType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0), 1);
+            FONT_HERSHEY_DUPLEX, 0.5, match_result.at(i).compare(nostring) == 0 ? Scalar(100, 149, 237) :
+            ((types.at(i) != handCardsAddType) ? Scalar(255, 0, 0) : Scalar(255, 255, 0)), 1);
     }
 }
 
@@ -581,11 +619,14 @@ vector<string> Recognition::DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, v
 
 
 vector<vector<string>> Recognition::getFinallyInfo(vector<string> match_result, vector<Vec<double, 5>> parall_small,
-    vector<int> types, Size size, int infoCount) {
+    vector<int> types, Size size, int infoCount, string nostring) {
 
     vector<vector<string>> finally_info(infoCount);
 
     for (int i = 0; i < match_result.size(); i++) {
+        if (match_result.at(i).compare(nostring) == 0) {
+            continue;
+        }
         char str[256];
         sprintf_s(str, "_%lg_%lg_%lg_%lg_%lg", parall_small.at(i)(0), parall_small.at(i)(1),
             parall_small.at(i)(2), parall_small.at(i)(3), parall_small.at(i)(4));
@@ -660,10 +701,6 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
     getSmall(parall_small, types, paralls, img, platform.posRect, platform.heightRatio, platform.heightRatioDelta,
         platform.lineMaxStd, platform.lineMinRatio, platform.lineMinRatioDelta, platform.lineMinRatioDeltaType0,
         platform.lineMaxRatio, platform.lineMaxRatioDeltaType0, platform.otherLineMinRatio, platform.otherLineMaxRatio);
-    if (parall_small.size() < MIN_CARDLIMIT) {
-        printf_s("Error: Less than the minimum detection limit!\n");
-        return vector<vector<string>>{ vector<string>{ "Error: Less than the minimum detection limit!" } };
-    }
     addDora(parall_small, types, img.size, platform.doraRect, int(platform.posRect.size() + 1));
     if (dataset_filename != "") {
         createDNNDataset(img, parall_small, dataset_filename, types, platform.isReversal);
@@ -690,7 +727,12 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
         }
         fprintf(fMatchWrite, "  }\n}\n");
     }
-    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, parall_small, types, img.size(), int(platform.posRect.size() + 2));
+    vector<vector<string>> finallyInfo = getFinallyInfo(match_result, parall_small, types, img.size(),
+        int(platform.posRect.size() + 2), platform.templetNames.at(LABEL_NO_ID));
+    if (finallyInfo.at(0).size() + finallyInfo.at(platform.posRect.size()).size() < MIN_CARDLIMIT) {
+        printf_s("Error: Less than the minimum detection limit!\n");
+        return vector<vector<string>>{ vector<string>{ "Error: Less than the minimum detection limit!" } };
+    }
     if (fInfoWrite != NULL) {
         fprintf(fInfoWrite, "{\n  \"%s\":{\n", instance.filename.c_str());
         for (int i = 0; i < finallyInfo.size(); i++) {
@@ -727,7 +769,8 @@ vector<vector<string>> Recognition::recognize(Instance instance, string dest_fil
             signArea(img, platform.doraRect);
         }
         if (SIGN_SMALL) {
-            signSmall(img, parall_small, match_result, types, int(platform.posRect.size()));
+            signSmall(img, parall_small, match_result, types, int(platform.posRect.size()),
+                platform.templetNames.at(LABEL_NO_ID));
         }
         imwrite(dest_filename, img);
         if (FLAG_CLOCK) {

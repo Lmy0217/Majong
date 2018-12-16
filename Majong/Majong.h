@@ -128,16 +128,16 @@ private:
     double getOverlap(Vec<double, 5> &para1, Vec<double, 5> &para2, Mat &img);
     void getOtherRects(vector<Vec<double, 5>> &paralls, vector<Vec<double, 5>> posRect, Mat img,
         color_callback_data &color_callback_data1_othercolor, bool hasErode, int areaThreshold, double minSideRatio);
-    void distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsType, int minLimit, int maxLimit);
+    void distHandCards(vector<Vec<double, 5>> &parall_small, vector<int> &types, int handCardsAddType, int minLimit, int maxLimit);
     void getSmall(vector<Vec<double, 5>> &parall_small, vector<int> &types, vector<Vec<double, 5>> &paralls, Mat &img, vector<Vec<double, 5>> &posRect,
         double heightRatio, double heightRatioDelta, double maxstd, double min_ratio, double min_ratio_delta, double min_ratio_delta_type0,
         double max_ratio, double max_ratio_delta_type0, double otherLineMinRatio, double otherLineMaxRatio);
     void addDora(vector<Vec<double, 5>> &parall_small, vector<int> &types, MatSize size, vector<Vec<double, 5>> &doraRect, int doraType);
-    void signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result, vector<int> &types, int handCardsType);
+    void signSmall(Mat &img, vector<Vec<double, 5>> &parall_small, vector<string> &match_result, vector<int> &types, int handCardsAddType, string nostring);
     void signArea(Mat &img, vector<Vec<double, 5>> &posRect);
     Platform getPlatform(string platName);
     vector<string> DNNMatch(Mat img, vector<Vec<double, 5>> &paralls, vector<int> &types, bool isReversal, string model_file, vector<string> &templetNames);
-    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<Vec<double, 5>> parall_small, vector<int> types, Size size, int infoCount);
+    vector<vector<string>> getFinallyInfo(vector<string> match_result, vector<Vec<double, 5>> parall_small, vector<int> types, Size size, int infoCount, string nostring);
     void createDNNDataset(Mat &img, vector<Vec<double, 5>> &paralls, string dest_filename, vector<int> &types, bool isReversal);
     vector<vector<string>> recognize(Instance instance, string dest_filename, FILE *fMatchWrite, FILE *fInfoWrite, string dataset_filename);
 };
@@ -173,6 +173,8 @@ private:
                         "tong8", "tong9", "wan1", "wan2", "wan3", "wan4", "wan5", "wan6", \
                         "wan7", "wan8", "wan9", "xi", "zhong" }
 
+#define LABEL_NO_ID 5
+
 #define VAILD_PLATFORMS map<string, int> { \
                             pair<string, int>("中至上饶麻将", 0), \
                             pair<string, int>("腾讯欢乐麻将", 1), \
@@ -192,10 +194,10 @@ private:
                     areaThreshold = 300; \
                     otherAreaThresholdRatio = 1; \
                     minSideRatio = 0.015; \
-                    posRect = { Vec<double, 5>(0.03, 0.83, 0.95, 0.16, 0.00), Vec<double, 5>(0.32, 0.60, 0.37, 0.21, 0.00), \
-                                Vec<double, 5>(0.12, 0.14, 0.04, 0.53, 0.00), Vec<double, 5>(0.17, 0.25, 0.11, 0.50, 0.00), \
-                                Vec<double, 5>(0.28, 0.03, 0.48, 0.11, 0.00), Vec<double, 5>(0.32, 0.15, 0.37, 0.21, 0.00), \
-                                Vec<double, 5>(0.86, 0.24, 0.04, 0.53, 0.00), Vec<double, 5>(0.72, 0.25, 0.11, 0.50, 0.00) }; \
+                    posRect = { Vec<double, 5>(0.03, 0.83, 0.95, 0.16, 0.00), Vec<double, 5>(0.26, 0.60, 0.48, 0.21, 0.00), \
+                                Vec<double, 5>(0.11, 0.14, 0.04, 0.64, 0.00), Vec<double, 5>(0.15, 0.19, 0.11, 0.58, 0.00), \
+                                Vec<double, 5>(0.28, 0.03, 0.45, 0.11, 0.00), Vec<double, 5>(0.26, 0.15, 0.48, 0.21, 0.00), \
+                                Vec<double, 5>(0.86, 0.14, 0.06, 0.64, 0.00), Vec<double, 5>(0.74, 0.19, 0.12, 0.58, 0.00) }; \
                     doraRect = { Vec<double, 5>(0.935, 0.04, 0.04, 0.095, 0.00) }; \
                     heightRatio = 0.07; \
                     heightRatioDelta = 0.0; \
@@ -205,8 +207,8 @@ private:
                     lineMinRatioDeltaType0 = 0.0; \
                     lineMaxRatio = 0.8; \
                     lineMaxRatioDeltaType0 = 0.0; \
-                    otherLineMinRatio = 0.05; \
-                    otherLineMaxRatio = 0.08; \
+                    otherLineMinRatio = 0.009; \
+                    otherLineMaxRatio = 0.081; \
                     isReversal = true;
 
 #define PARMS_PLAT_1 resizeRatio = 1.0; \
